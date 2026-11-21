@@ -18,10 +18,22 @@ import (
 	api "forgejo.org/modules/structs"
 )
 
+// ToAPIPullRequestOptions selects optional parts of the conversion
+type ToAPIPullRequestOptions struct {
+	// SkipStat leaves Additions, Deletions and ChangedFiles at zero instead of
+	// running `git diff-tree --shortstat` for them.
+	SkipStat bool
+}
+
 // ToAPIPullRequest assumes following fields have been assigned with valid values:
 // Required - Issue
 // Optional - Merger
 func ToAPIPullRequest(ctx context.Context, pr *issues_model.PullRequest, doer *user_model.User) *api.PullRequest {
+	return ToAPIPullRequestWithOptions(ctx, pr, doer, ToAPIPullRequestOptions{})
+}
+
+// ToAPIPullRequestWithOptions is ToAPIPullRequest with optional parts selected by opts
+func ToAPIPullRequestWithOptions(ctx context.Context, pr *issues_model.PullRequest, doer *user_model.User, opts ToAPIPullRequestOptions) *api.PullRequest {
 	var (
 		baseBranch *git.Branch
 		headBranch *git.Branch
@@ -231,13 +243,15 @@ func ToAPIPullRequest(ctx context.Context, pr *issues_model.PullRequest, doer *u
 			}
 		}
 
-		// Calculate diff
-		startCommitID = pr.MergeBase
+		if !opts.SkipStat {
+			// Calculate diff
+			startCommitID = pr.MergeBase
 
-		// startCommitID is already merge-base with endCommitID we can directly compare.
-		apiPullRequest.ChangedFiles, apiPullRequest.Additions, apiPullRequest.Deletions, err = gitRepo.GetShortStat(startCommitID, endCommitID, false)
-		if err != nil {
-			log.Error("GetShortStat: %v", err)
+			// startCommitID is already merge-base with endCommitID we can directly compare.
+			apiPullRequest.ChangedFiles, apiPullRequest.Additions, apiPullRequest.Deletions, err = gitRepo.GetShortStat(startCommitID, endCommitID, false)
+			if err != nil {
+				log.Error("GetShortStat: %v", err)
+			}
 		}
 	}
 

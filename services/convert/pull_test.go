@@ -50,6 +50,31 @@ func TestPullRequest_APIFormat(t *testing.T) {
 	assert.EqualValues(t, -1, apiPullRequest.Head.RepoID)
 }
 
+func TestPullRequest_APIFormatSkipStat(t *testing.T) {
+	require.NoError(t, unittest.PrepareTestDatabase())
+	pr := unittest.AssertExistsAndLoadBean(t, &issues_model.PullRequest{ID: 2})
+	require.NoError(t, pr.LoadAttributes(db.DefaultContext))
+	require.NoError(t, pr.LoadIssue(db.DefaultContext))
+
+	withStat := ToAPIPullRequest(git.DefaultContext, pr, nil)
+	require.NotNil(t, withStat)
+	assert.Equal(t, 2, withStat.ChangedFiles)
+	assert.Equal(t, 4, withStat.Additions)
+	assert.Equal(t, 2, withStat.Deletions)
+
+	withoutStat := ToAPIPullRequestWithOptions(git.DefaultContext, pr, nil, ToAPIPullRequestOptions{SkipStat: true})
+	require.NotNil(t, withoutStat)
+	assert.Zero(t, withoutStat.ChangedFiles)
+	assert.Zero(t, withoutStat.Additions)
+	assert.Zero(t, withoutStat.Deletions)
+
+	// Everything else is unchanged.
+	withoutStat.ChangedFiles = withStat.ChangedFiles
+	withoutStat.Additions = withStat.Additions
+	withoutStat.Deletions = withStat.Deletions
+	assert.Equal(t, withStat, withoutStat)
+}
+
 func TestPullReviewList(t *testing.T) {
 	require.NoError(t, unittest.PrepareTestDatabase())
 

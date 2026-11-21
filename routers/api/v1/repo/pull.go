@@ -99,6 +99,11 @@ func ListPullRequests(ctx *context.APIContext) {
 	//   in: query
 	//   description: Filter by head branch name
 	//   type: string
+	// - name: stat
+	//   in: query
+	//   description: compute additions, deletions and changed_files for every pull request (disable for speedup; the fields are then present and 0)
+	//   type: boolean
+	//   default: true
 	// - name: page
 	//   in: query
 	//   description: Page number of results to return (1-based)
@@ -187,8 +192,11 @@ func ListPullRequests(ctx *context.APIContext) {
 		return
 	}
 
+	convertOpts := convert.ToAPIPullRequestOptions{
+		SkipStat: ctx.FormString("stat") != "" && !ctx.FormBool("stat"),
+	}
 	for i := range prs {
-		apiPrs[i] = convert.ToAPIPullRequest(ctx, prs[i], ctx.Doer())
+		apiPrs[i] = convert.ToAPIPullRequestWithOptions(ctx, prs[i], ctx.Doer(), convertOpts)
 	}
 
 	ctx.SetLinkHeader(int(maxResults), listOptions.PageSize)

@@ -14956,6 +14956,13 @@
             "in": "query"
           },
           {
+            "type": "boolean",
+            "default": true,
+            "description": "compute additions, deletions and changed_files for every pull request (disable for speedup; the fields are then present and 0)",
+            "name": "stat",
+            "in": "query"
+          },
+          {
             "minimum": 1,
             "type": "integer",
             "default": 1,

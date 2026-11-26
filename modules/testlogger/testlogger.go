@@ -87,7 +87,7 @@ var ignoredErrorMessage = []string{
 	`:func1() [E] checkForInvalidation: GetRepositoryByIDCtx: repository does not exist `,
 
 	// TestAPIPullReviewRequest
-	`ToAPIPullRequest() [E] unable to resolve PR head ref`,
+	`ToAPIPullRequestWithOptions() [E] unable to resolve PR head ref`,
 
 	// TestAPILFSUpload
 	`Put() [E] Whilst putting LFS OID[ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb]: Failed to copy to tmpPath: ca/97/8112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb Error: content size does not match`,

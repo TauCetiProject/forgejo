@@ -57,6 +57,62 @@ func TestAPIViewPulls(t *testing.T) {
 	}
 }
 
+func TestAPIViewPullsStat(t *testing.T) {
+	defer tests.PrepareTestEnv(t)()
+	repo := unittest.AssertExistsAndLoadBean(t, &repo_model.Repository{ID: 1})
+
+	ctx := NewAPITestContext(t, "user2", repo.Name, auth_model.AccessTokenScopeReadRepository)
+
+	listPulls := func(t *testing.T, query string) map[int64]*api.PullRequest {
+		t.Helper()
+		req := NewRequestf(t, "GET", "/api/v1/repos/%s/%s/pulls?state=all%s", repo.OwnerName, repo.Name, query).AddTokenAuth(ctx.Token)
+		resp := ctx.Session.MakeRequest(t, req, http.StatusOK)
+
+		var pulls []*api.PullRequest
+		DecodeJSON(t, resp, &pulls)
+		byID := make(map[int64]*api.PullRequest, len(pulls))
+		for _, pull := range pulls {
+			byID[pull.ID] = pull
+		}
+		return byID
+	}
+
+	withStat := listPulls(t, "")
+	require.Contains(t, withStat, int64(2))
+	assert.Equal(t, 2, withStat[2].ChangedFiles)
+	assert.Equal(t, 4, withStat[2].Additions)
+	assert.Equal(t, 2, withStat[2].Deletions)
+
+	// The same values as the commit listings' `stat`: empty or true computes the stat.
+	for _, query := range []string{"&stat=true", "&stat=1", "&stat=on", "&stat="} {
+		assert.Equal(t, withStat, listPulls(t, query), query)
+	}
+
+	for _, query := range []string{"&stat=false", "&stat=0", "&stat=off"} {
+		withoutStat := listPulls(t, query)
+		require.Len(t, withoutStat, len(withStat), query)
+		for id, pull := range withoutStat {
+			assert.Zero(t, pull.ChangedFiles, "%s pull %d", query, id)
+			assert.Zero(t, pull.Additions, "%s pull %d", query, id)
+			assert.Zero(t, pull.Deletions, "%s pull %d", query, id)
+
+			// Everything else is unchanged.
+			pull.ChangedFiles = withStat[id].ChangedFiles
+			pull.Additions = withStat[id].Additions
+			pull.Deletions = withStat[id].Deletions
+			assert.Equal(t, withStat[id], pull, "%s pull %d", query, id)
+		}
+	}
+
+	// The single pull request endpoint always computes it.
+	req := NewRequestf(t, "GET", "/api/v1/repos/%s/%s/pulls/%d?stat=false", repo.OwnerName, repo.Name, withStat[2].Index).AddTokenAuth(ctx.Token)
+	var single api.PullRequest
+	DecodeJSON(t, ctx.Session.MakeRequest(t, req, http.StatusOK), &single)
+	assert.Equal(t, 2, single.ChangedFiles)
+	assert.Equal(t, 4, single.Additions)
+	assert.Equal(t, 2, single.Deletions)
+}
+
 func TestAPIPullsFiles(t *testing.T) {
 	defer tests.PrepareTestEnv(t)()
 	repo := unittest.AssertExistsAndLoadBean(t, &repo_model.Repository{ID: 1})
